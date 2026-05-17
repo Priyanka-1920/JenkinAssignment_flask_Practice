@@ -28,106 +28,97 @@ A simple **Flask** web application to manage student records with **MongoDB** as
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
-cd <repo-folder>
+git clone https://github.com/Priyanka-1920/JenkinAssignment_flask_Practice.git
+cd JenkinAssignment_flask_Practice.git
 ```
+**Create two branches:**
+git checkout -b main
+git push origin main
 
-### 2. Create and activate a virtual environment
+git checkout -b staging
+git push origin staging
 
-```bash
-python -m venv venv
-# Activate venv
-# Windows:
-venv\Scripts\activate
-# Linux / Mac:
-source venv/bin/activate
-```
+**Create GitHub Actions Workflow Directory**
+.github/workflows/
 
-### 3. Install dependencies
+Create a new workflow file:
+.github/workflows/ci-cd.yml
 
-```bash
-pip install -r requirements.txt
-```
+Create the CI/CD Workflow File
+ci-cd.yml
 
-**`requirements.txt` example:**
+name: CI/CD Pipeline for Flask App
 
-```
-Flask
-Flask-PyMongo
-python-dotenv
-bson
-```
+on: push: branches: - main - staging pull_request: branches: - main - staging release: types: [created]
 
-### 4. Configure environment variables
+**jobs:**
 
-Create a `.env` file in the project root:
+install-and-test: runs-on: ubuntu-latest
 
-```
-MONGO_URI=<your-mongodb-connection-string>
-SECRET_KEY=<your-secret-key>
-```
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v3
 
-### 5. Run the application
+  - name: Set up Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.10'
 
-```bash
-python app.py
-```
+  - name: Install Dependencies
+    run: pip install -r requirements.txt
 
-Open your browser at: [http://localhost:8000](http://localhost:8000)
+  - name: Run Tests
+    run: |
+      pip install pytest
+      pytest
+build: needs: install-and-test runs-on: ubuntu-latest if: success()
 
----
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v3
 
-## Project Structure
+  - name: Build Application
+    run: |
+      echo "Building application..."
+      mkdir build
+      cp -r app build/
+      echo "Build complete!"
+deploy-staging: needs: build runs-on: ubuntu-latest if: github.ref == 'refs/heads/staging'
 
-```
-project/
-│
-├── templates/
-│   ├── base.html
-│   ├── index.html
-│   ├── add_student.html
-│   ├── update_student.html
-│
-├── app.py
-├── requirements.txt
-└── .env
-```
+steps:
+  - name: Deploy to Staging
+    run: |
+      echo "Deploying to staging..."
+      echo "Using secret key: ${{ secrets.STAGING_API_KEY }}"
+      echo "Staging deployment done!"
+deploy-production: needs: build runs-on: ubuntu-latest if: startsWith(github.ref, 'refs/tags/')
 
----
+steps:
+  - name: Deploy to Production
+    run: |
+      echo "Deploying to production..."
+      echo "Using production key: ${{ secrets.PRODUCTION_API_KEY }}"
+      echo "Production deployment done!"
+**Add Environment Secrets**
+Go to your repo: The workflow requires sensitive deployment credentials stored securely as GitHub Secrets.
+**Click on Settings → Secrets and variables → Actions → New repository secret**
 
-## Screenshots
+**Add the following secrets:**
+STAGING_API_KEY Used for staging deployment
+PRODUCTION_API_KEY Used for production deployment
 
-**Home Page**
-Lists all students with Edit/Delete buttons.
-- <img width="1902" height="607" alt="image" src="https://github.com/user-attachments/assets/a58a6a6d-4978-4769-8074-232e4d31e69d" />
+These secrets are used in the workflow to authenticate deployment securely without exposing sensitive information in the code.
 
+**GitHub Actions CI/CD Workflow**
+This repository includes a GitHub Actions workflow to automate the Continuous Integration and Continuous Deployment (CI/CD) of the Flask application.
 
-**Add Student**
-Form to add a new student.
-- <img width="1897" height="801" alt="image" src="https://github.com/user-attachments/assets/d65d25c3-ebb5-410a-adb1-e130ad7c5878" />
+The workflow performs the following steps automatically:
 
-
-**Update Student**
-Form pre-filled with student details.
-- <img width="1905" height="897" alt="image" src="https://github.com/user-attachments/assets/04febf01-879f-431f-ab07-abcfb993acf1" />
-
-
-
----
-
-## Notes
-
-* Make sure MongoDB is running and accessible via the URI in `.env`
-* Delete action includes a confirmation page to prevent accidental deletion
-* Uses `ObjectId` from `bson` to work with MongoDB document IDs
-
----
-
-## License
-
-MIT License
-
----
-
-
-
+Installs the necessary Python dependencies.
+Runs the test suite using pytest to ensure code quality.
+Builds/prepares the application if tests pass.
+Deploys the application to the staging environment on push to the staging branch.
+Deploys the application to the production environment when a release is tagged.
+Branch Usage:
+"staging" branch: This branch is used for deploying the application to the staging environment for testing before production release.
+"main" branch or GitHub Releases: When a release tag is created (e.g., v1.0.0), the application is deployed to the production environment.
